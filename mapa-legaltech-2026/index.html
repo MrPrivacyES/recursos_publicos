@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mapa de la legaltech española · 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  html,body{margin:0;padding:0;background:#F2EFE8;color:#1B2431;font-family:'Archivo',sans-serif;}
+  *{box-sizing:border-box;}
+  ::-webkit-scrollbar{width:10px;height:10px;}
+  ::-webkit-scrollbar-thumb{background:#C9C3B4;border-radius:6px;border:2px solid #F2EFE8;}
+  ::-webkit-scrollbar-track{background:transparent;}
+  button{font-family:'Archivo',sans-serif;}
+  .fila{cursor:pointer;display:flex;gap:9px;padding:8px 9px;border-radius:7px;background:#FFFFFF;border:1px solid #EAE5D8;align-items:flex-start;}
+  .fila:hover{background:#F1EDE1;}
+  .fila.sel{background:#EFE8D5;border-color:#C9B77E;}
+  .chip{cursor:pointer;display:flex;align-items:center;gap:5px;padding:4px 9px;border-radius:99px;border:1px solid #DDD8CB;background:#FFFFFF;color:#4A4536;font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-weight:500;}
+  .badge-ia{font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;background:#1B2431;color:#E8B34B;padding:1px 5px;border-radius:3px;}
+  .badge-nueva{font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:600;background:#4E8A46;color:#fff;padding:1px 5px;border-radius:3px;}
+  .stat-row{display:flex;align-items:center;gap:8px;cursor:pointer;}
+  .stat-label{width:104px;flex:none;font-size:11px;color:#4A4536;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right;}
+  .stat-bar{flex:1;height:13px;background:#EDE9DD;border-radius:3px;overflow:hidden;}
+  .stat-n{width:22px;flex:none;font-family:'IBM Plex Mono',monospace;font-size:10.5px;font-weight:600;}
+  #buscador:focus{border-color:#3E5C94;outline:none;}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3-composite-projections@1.4.0/d3-composite-projections.min.js"></script>
+<script src="empresas.js"></script>
+</head>
+<body>
+
+<div style="display:flex;flex-direction:column;height:100vh;min-height:700px;overflow:hidden;">
+
+  <!-- ═══ Cabecera ═══ -->
+  <header style="display:flex;align-items:center;gap:24px;padding:14px 24px;background:#1B2431;color:#F2EFE8;flex:none;">
+    <div style="display:flex;flex-direction:column;gap:2px;min-width:0;">
+      <h1 style="margin:0;font-size:21px;font-weight:800;letter-spacing:-0.3px;white-space:nowrap;">El mapa de la legaltech española <span style="color:#E8B34B;">2026</span></h1>
+      <p style="margin:0;font-size:11.5px;color:#9AA3B2;font-family:'IBM Plex Mono',monospace;">Base: Guía Legaltech de Derecho Práctico · + lanzamientos IA jul 2025 – jul 2026</p>
+    </div>
+    <div style="display:flex;gap:10px;margin-left:auto;align-items:center;">
+      <div style="display:flex;flex-direction:column;align-items:flex-end;padding:4px 14px;border-right:1px solid #39445A;">
+        <span id="kpi-total" style="font-size:20px;font-weight:800;line-height:1;">–</span>
+        <span style="font-size:10px;color:#9AA3B2;font-family:'IBM Plex Mono',monospace;">herramientas</span>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;padding:4px 14px;border-right:1px solid #39445A;">
+        <span id="kpi-ia" style="font-size:20px;font-weight:800;line-height:1;color:#E8B34B;">–</span>
+        <span style="font-size:10px;color:#9AA3B2;font-family:'IBM Plex Mono',monospace;">con IA</span>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;padding:4px 14px;">
+        <span id="kpi-nuevas" style="font-size:20px;font-weight:800;line-height:1;color:#7FBF7A;">–</span>
+        <span style="font-size:10px;color:#9AA3B2;font-family:'IBM Plex Mono',monospace;">nuevas 12 meses</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ═══ Cuerpo: directorio | mapa | estadísticas ═══ -->
+  <div style="display:grid;grid-template-columns:330px 1fr 300px;gap:0;flex:1;min-height:0;">
+
+    <!-- ── Columna izquierda: filtros + directorio ── -->
+    <aside style="display:flex;flex-direction:column;min-height:0;border-right:1px solid #DDD8CB;background:#FAF8F3;">
+      <div style="padding:14px 16px 10px;display:flex;flex-direction:column;gap:10px;border-bottom:1px solid #E6E1D4;">
+        <input id="buscador" placeholder="Buscar app, empresa o ciudad…" style="width:100%;padding:9px 12px;border:1px solid #C9C3B4;border-radius:6px;background:#fff;font-family:'Archivo',sans-serif;font-size:13px;color:#1B2431;">
+        <select id="sel-region" style="width:100%;padding:8px 10px;border:1px solid #C9C3B4;border-radius:6px;background:#fff;font-family:'Archivo',sans-serif;font-size:12.5px;color:#1B2431;"></select>
+        <div id="chips" style="display:flex;flex-wrap:wrap;gap:5px;"></div>
+        <div style="display:flex;gap:12px;font-size:12px;align-items:center;">
+          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;"><input type="checkbox" id="chk-ia"> Solo IA</label>
+          <label style="display:flex;align-items:center;gap:5px;cursor:pointer;"><input type="checkbox" id="chk-nuevas"> Nuevas 12 m</label>
+          <button id="btn-limpiar" style="cursor:pointer;margin-left:auto;background:none;border:none;color:#B44E2C;font-family:'IBM Plex Mono',monospace;font-size:11px;text-decoration:underline;display:none;">limpiar</button>
+        </div>
+      </div>
+      <div id="n-resultados" style="padding:8px 16px 4px;font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:#7B7566;flex:none;"></div>
+      <div id="lista" style="flex:1;overflow-y:auto;min-height:0;padding:4px 10px 16px;display:flex;flex-direction:column;gap:4px;"></div>
+    </aside>
+
+    <!-- ── Centro: mapa ── -->
+    <main style="position:relative;min-height:0;display:flex;flex-direction:column;">
+      <div style="position:absolute;top:14px;left:18px;z-index:5;display:flex;flex-direction:column;gap:4px;pointer-events:none;">
+        <span id="titulo-mapa" style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#7B7566;">Todas las categorías</span>
+        <span id="region-activa" style="font-size:15px;font-weight:800;color:#1B2431;display:none;"></span>
+      </div>
+      <div style="position:absolute;bottom:14px;left:18px;z-index:5;display:flex;flex-direction:column;gap:5px;background:rgba(250,248,243,.9);border:1px solid #DDD8CB;border-radius:8px;padding:10px 12px;">
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#7B7566;">HERRAMIENTAS POR COMUNIDAD</span>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;">0</span>
+          <div id="grad-leyenda" style="width:110px;height:9px;border-radius:4px;background:linear-gradient(90deg,#EDE9DD,#3E5C94);border:1px solid #DDD8CB;"></div>
+          <span id="max-region" style="font-family:'IBM Plex Mono',monospace;font-size:10px;">–</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;margin-top:2px;">
+          <span style="width:11px;height:11px;border-radius:50%;background:#1B2431;border:2px solid #fff;box-shadow:0 0 0 1px #1B2431;"></span>
+          <span style="font-size:10.5px;color:#4A4536;">sede por ciudad (tamaño = nº)</span>
+        </div>
+      </div>
+      <div id="geo-error" style="position:absolute;inset:0;display:none;align-items:center;justify-content:center;z-index:4;">
+        <div style="background:#fff;border:1px solid #DDD8CB;border-radius:10px;padding:20px 26px;max-width:380px;text-align:center;font-size:13px;color:#4A4536;">No se ha podido cargar la cartografía (se necesita conexión). El directorio y las estadísticas siguen operativos.</div>
+      </div>
+      <div id="mapa-contenedor" style="flex:1;min-height:0;position:relative;"></div>
+      <div style="flex:none;padding:8px 18px 10px;display:flex;justify-content:space-between;align-items:baseline;gap:12px;">
+        <span style="font-size:10.5px;color:#96917F;">Haz clic en una comunidad o en una burbuja de ciudad para filtrar · doble clic fuera para restablecer</span>
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#96917F;"><span id="kpi-int-pie">–</span> internacionales sin sede en España</span>
+      </div>
+    </main>
+
+    <!-- ── Columna derecha: ficha / estadísticas ── -->
+    <aside style="display:flex;flex-direction:column;min-height:0;border-left:1px solid #DDD8CB;background:#FAF8F3;overflow-y:auto;">
+      <div id="ficha" style="display:none;padding:16px;border-bottom:1px solid #E6E1D4;background:#fff;"></div>
+
+      <div style="padding:16px;display:flex;flex-direction:column;gap:18px;">
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <h3 style="margin:0;font-size:11px;font-family:'IBM Plex Mono',monospace;font-weight:600;color:#7B7566;letter-spacing:.5px;">PROYECTOS POR TERRITORIO</h3>
+          <div id="stats-reg" style="display:flex;flex-direction:column;gap:8px;"></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <h3 style="margin:0;font-size:11px;font-family:'IBM Plex Mono',monospace;font-weight:600;color:#7B7566;letter-spacing:.5px;">PROYECTOS POR TIPO DE SERVICIO</h3>
+          <div id="stats-cat" style="display:flex;flex-direction:column;gap:8px;"></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;border-top:1px solid #E6E1D4;padding-top:12px;">
+          <div style="display:flex;justify-content:space-between;font-size:12px;"><span style="color:#7B7566;">Con sede en España</span><span id="kpi-esp" style="font-family:'IBM Plex Mono',monospace;font-weight:600;">–</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;"><span style="color:#7B7566;">Internacionales</span><span id="kpi-int" style="font-family:'IBM Plex Mono',monospace;font-weight:600;">–</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;"><span style="color:#7B7566;">Cuota con IA</span><span id="kpi-pct-ia" style="font-family:'IBM Plex Mono',monospace;font-weight:600;">–</span></div>
+        </div>
+        <p style="margin:0;font-size:10px;line-height:1.5;color:#96917F;">Muestra basada en la Guía Legaltech de Derecho Práctico y en el seguimiento de lanzamientos con IA (prensa especializada y LinkedIn, jul 2025 – jul 2026). Datos editables en <span style="font-family:'IBM Plex Mono',monospace;">empresas.js</span>.</p>
+      </div>
+    </aside>
+  </div>
+
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var COLOR_ACENTO = "#3E5C94";
+  var SHORTS = { docs: "Docs", auto: "Automatización", bd: "Bases de datos", ciber: "Ciber/Compliance", digcomp: "Formación", marketplace: "Marketplaces", online: "Serv. online", gestion: "Gestión" };
+
+  var state = {
+    geo: null, geoError: false,
+    search: "", region: "", cat: "", soloIA: false, soloNuevas: false,
+    sel: null
+  };
+  var _firma = null;
+
+  function $(id) { return document.getElementById(id); }
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  function datos() { return window.LEGALTECH_DATA || { cats: [], cities: {}, regiones: [], items: [] }; }
+  function catMap() {
+    var m = {}; datos().cats.forEach(function (c) { m[c.k] = c; }); return m;
+  }
+  function canonRegion(nombre) {
+    var s = (nombre || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+    if (s.indexOf("madrid") >= 0) return "Comunidad de Madrid";
+    if (s.indexOf("valencia") >= 0) return "Comunidad Valenciana";
+    if (s.indexOf("murcia") >= 0) return "Región de Murcia";
+    if (s.indexOf("navarra") >= 0) return "Navarra";
+    if (s.indexOf("asturias") >= 0) return "Asturias";
+    if (s.indexOf("balear") >= 0) return "Islas Baleares";
+    if (s.indexOf("canaria") >= 0) return "Canarias";
+    if (s.indexOf("rioja") >= 0) return "La Rioja";
+    if (s.indexOf("vasco") >= 0 || s.indexOf("euskadi") >= 0) return "País Vasco";
+    if (s.indexOf("mancha") >= 0) return "Castilla-La Mancha";
+    if (s.indexOf("leon") >= 0 && s.indexOf("castilla") >= 0) return "Castilla y León";
+    if (s.indexOf("catal") >= 0) return "Cataluña";
+    if (s.indexOf("andaluc") >= 0) return "Andalucía";
+    if (s.indexOf("arag") >= 0) return "Aragón";
+    if (s.indexOf("extremadura") >= 0) return "Extremadura";
+    if (s.indexOf("galicia") >= 0) return "Galicia";
+    if (s.indexOf("cantabria") >= 0) return "Cantabria";
+    if (s.indexOf("ceuta") >= 0) return "Ceuta";
+    if (s.indexOf("melilla") >= 0) return "Melilla";
+    return nombre;
+  }
+  function nombreFeature(f) { return f.properties.name || f.properties.NAME || f.properties.NAME_1; }
+  function regionDe(it) {
+    if (it.ci) { var c = datos().cities[it.ci]; return c ? c.r : null; }
+    return null;
+  }
+  function filtrar() {
+    var st = state, q = st.search.trim().toLowerCase();
+    return datos().items.filter(function (it) {
+      var reg = regionDe(it);
+      if (st.region === "__int") { if (!it.pais) return false; }
+      else if (st.region === "__sin") { if (it.ci || it.pais) return false; }
+      else if (st.region) { if (reg !== st.region) return false; }
+      if (st.cat && it.c !== st.cat) return false;
+      if (st.soloIA && !it.ia) return false;
+      if (st.soloNuevas && !it.nu) return false;
+      if (q) {
+        var blob = (it.n + " " + (it.e || "") + " " + (it.ci || "") + " " + (it.pais || "") + " " + (reg || "") + " " + (it.d || "")).toLowerCase();
+        if (blob.indexOf(q) < 0) return false;
+      }
+      return true;
+    });
+  }
+  function locDe(it) {
+    if (it.ci) return it.ci + " · " + regionDe(it);
+    return it.pais ? it.pais : "España · sede sin localizar";
+  }
+
+  // ——— render ———
+  function setState(patch) {
+    Object.assign(state, patch);
+    render();
+  }
+
+  function render() {
+    renderControles();
+    renderLista();
+    renderStats();
+    renderFicha();
+    drawMap();
+  }
+
+  function renderKPIsBase() {
+    var base = datos().items;
+    var kpiIA = base.filter(function (i) { return i.ia; }).length;
+    $("kpi-total").textContent = base.length;
+    $("kpi-ia").textContent = kpiIA;
+    $("kpi-nuevas").textContent = base.filter(function (i) { return i.nu; }).length;
+    var nInt = base.filter(function (i) { return i.pais; }).length;
+    $("kpi-esp").textContent = base.filter(function (i) { return i.ci; }).length;
+    $("kpi-int").textContent = nInt;
+    $("kpi-int-pie").textContent = nInt;
+    $("kpi-pct-ia").textContent = Math.round(kpiIA / Math.max(1, base.length) * 100) + "%";
+  }
+
+  function renderControles() {
+    var st = state;
+    if ($("buscador").value !== st.search) $("buscador").value = st.search;
+    $("sel-region").value = st.region;
+    $("chk-ia").checked = st.soloIA;
+    $("chk-nuevas").checked = st.soloNuevas;
+    var hayFiltros = !!(st.search || st.region || st.cat || st.soloIA || st.soloNuevas);
+    $("btn-limpiar").style.display = hayFiltros ? "" : "none";
+    // chips
+    datos().cats.forEach(function (c) {
+      var b = $("chip-" + c.k), act = st.cat === c.k;
+      if (!b) return;
+      b.style.background = act ? c.color : "#FFFFFF";
+      b.style.color = act ? "#FFFFFF" : "#4A4536";
+      b.style.borderColor = act ? c.color : "#DDD8CB";
+    });
+    // rótulos del mapa
+    var cm = catMap();
+    $("titulo-mapa").textContent = st.cat ? (cm[st.cat] || {}).label : "Todas las categorías";
+    var regionActiva = !!st.region && st.region !== "__int" && st.region !== "__sin";
+    $("region-activa").style.display = regionActiva ? "" : "none";
+    $("region-activa").textContent = regionActiva ? st.region : "";
+  }
+
+  function renderLista() {
+    var cm = catMap();
+    var items = filtrar();
+    $("n-resultados").textContent = items.length + " resultados";
+    var html = items.map(function (it, i) {
+      var color = (cm[it.c] || {}).color || "#999";
+      var sub = (it.e ? it.e + " — " : "") + locDe(it);
+      var selCls = state.sel && state.sel.n === it.n ? " sel" : "";
+      return '<div class="fila' + selCls + '" data-i="' + i + '">' +
+        '<span style="width:9px;height:9px;border-radius:50%;background:' + color + ';flex:none;margin-top:4px;"></span>' +
+        '<div style="min-width:0;flex:1;">' +
+          '<div style="display:flex;gap:6px;align-items:baseline;flex-wrap:wrap;">' +
+            '<span style="font-weight:700;font-size:13px;">' + esc(it.n) + '</span>' +
+            (it.ia ? '<span class="badge-ia">IA</span>' : "") +
+            (it.nu ? '<span class="badge-nueva">NUEVA</span>' : "") +
+          '</div>' +
+          '<div style="font-size:11px;color:#7B7566;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(sub) + '</div>' +
+        '</div></div>';
+    }).join("");
+    $("lista").innerHTML = html;
+    var filas = $("lista").querySelectorAll(".fila");
+    filas.forEach(function (el) {
+      el.addEventListener("click", function () {
+        setState({ sel: items[+el.getAttribute("data-i")] });
+      });
+    });
+  }
+
+  function renderStats() {
+    var D = datos(), cm = catMap();
+    var filtered = filtrar();
+    var regCount = {}, catCount = {};
+    filtered.forEach(function (it) {
+      var r = it.pais ? "Internacional" : (regionDe(it) || "Sin localizar");
+      regCount[r] = (regCount[r] || 0) + 1;
+      catCount[it.c] = (catCount[it.c] || 0) + 1;
+    });
+    var maxR = Math.max.apply(null, [1].concat(Object.keys(regCount).map(function (k) { return regCount[k]; })));
+    var entradas = Object.keys(regCount).map(function (k) { return [k, regCount[k]]; })
+      .sort(function (a, b) { return b[1] - a[1]; }).slice(0, 10);
+    $("stats-reg").innerHTML = entradas.map(function (e) {
+      var gris = e[0] === "Internacional" || e[0] === "Sin localizar";
+      return '<div class="stat-row" data-reg="' + esc(e[0]) + '" title="Filtrar por ' + esc(e[0]) + '">' +
+        '<span class="stat-label">' + esc(e[0]) + '</span>' +
+        '<div class="stat-bar"><div style="height:100%;width:' + Math.round(e[1] / maxR * 100) + '%;background:' + (gris ? "#C9C3B4" : COLOR_ACENTO) + ';border-radius:3px;"></div></div>' +
+        '<span class="stat-n">' + e[1] + '</span></div>';
+    }).join("");
+    $("stats-reg").querySelectorAll(".stat-row").forEach(function (el) {
+      el.addEventListener("click", function () {
+        var r = el.getAttribute("data-reg");
+        if (D.regiones.indexOf(r) >= 0) setState({ region: state.region === r ? "" : r });
+      });
+    });
+    $("max-region").textContent = maxR;
+
+    var maxC = Math.max.apply(null, [1].concat(Object.keys(catCount).map(function (k) { return catCount[k]; })));
+    var cats = D.cats.filter(function (c) { return catCount[c.k]; })
+      .sort(function (a, b) { return (catCount[b.k] || 0) - (catCount[a.k] || 0); });
+    $("stats-cat").innerHTML = cats.map(function (c) {
+      return '<div class="stat-row" data-cat="' + c.k + '" title="Filtrar por ' + esc(c.label) + '">' +
+        '<span class="stat-label">' + esc(c.label) + '</span>' +
+        '<div class="stat-bar"><div style="height:100%;width:' + Math.round((catCount[c.k] || 0) / maxC * 100) + '%;background:' + c.color + ';border-radius:3px;"></div></div>' +
+        '<span class="stat-n">' + (catCount[c.k] || 0) + '</span></div>';
+    }).join("");
+    $("stats-cat").querySelectorAll(".stat-row").forEach(function (el) {
+      el.addEventListener("click", function () {
+        var k = el.getAttribute("data-cat");
+        setState({ cat: state.cat === k ? "" : k });
+      });
+    });
+  }
+
+  function renderFicha() {
+    var f = $("ficha"), it = state.sel;
+    if (!it) { f.style.display = "none"; f.innerHTML = ""; return; }
+    var cm = catMap();
+    var color = (cm[it.c] || {}).color || "#999";
+    var catLabel = (cm[it.c] || {}).label || it.c;
+    var webUrl = it.w ? "https://" + it.w : null;
+    var guiaUrl = it.g ? "https://derechopractico.es/guialegaltech/" + it.g + "/" : null;
+    f.innerHTML =
+      '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">' +
+        '<div style="display:flex;flex-direction:column;gap:2px;">' +
+          '<span style="display:inline-flex;align-items:center;gap:6px;font-family:\'IBM Plex Mono\',monospace;font-size:10px;color:#7B7566;"><span style="width:8px;height:8px;border-radius:50%;background:' + color + ';"></span>' + esc(catLabel) + '</span>' +
+          '<h2 style="margin:0;font-size:19px;font-weight:800;letter-spacing:-0.2px;">' + esc(it.n) + '</h2>' +
+          '<span style="font-size:12px;color:#7B7566;">' + esc(it.e || "") + '</span>' +
+        '</div>' +
+        '<button id="btn-cerrar-sel" style="cursor:pointer;background:none;border:1px solid #DDD8CB;border-radius:6px;width:26px;height:26px;font-size:13px;color:#7B7566;flex:none;">✕</button>' +
+      '</div>' +
+      '<p style="margin:10px 0 12px;font-size:13px;line-height:1.5;color:#37414F;">' + esc(it.d || "") + '</p>' +
+      '<div style="display:flex;flex-direction:column;gap:6px;font-size:12.5px;">' +
+        '<div style="display:flex;gap:8px;"><span style="font-family:\'IBM Plex Mono\',monospace;font-size:10.5px;color:#96917F;width:64px;flex:none;">SEDE</span><span>' + esc(locDe(it)) + '</span></div>' +
+        (webUrl ? '<div style="display:flex;gap:8px;"><span style="font-family:\'IBM Plex Mono\',monospace;font-size:10.5px;color:#96917F;width:64px;flex:none;">WEB</span><a href="' + esc(webUrl) + '" target="_blank" rel="noopener" style="color:#3E5C94;font-weight:600;text-decoration:none;border-bottom:1px solid #3E5C94;">' + esc(it.w) + '</a></div>' : "") +
+        (guiaUrl ? '<div style="display:flex;gap:8px;"><span style="font-family:\'IBM Plex Mono\',monospace;font-size:10.5px;color:#96917F;width:64px;flex:none;">GUÍA</span><a href="' + esc(guiaUrl) + '" target="_blank" rel="noopener" style="color:#3E5C94;text-decoration:none;border-bottom:1px solid #C9C3B4;">ficha en Derecho Práctico ↗</a></div>' : "") +
+        '<div style="display:flex;gap:6px;margin-top:4px;">' +
+          (it.ia ? '<span class="badge-ia" style="font-size:10px;padding:2px 7px;">USA IA</span>' : "") +
+          (it.nu ? '<span class="badge-nueva" style="font-size:10px;padding:2px 7px;">NUEVA 2025-26</span>' : "") +
+        '</div>' +
+      '</div>';
+    f.style.display = "";
+    $("btn-cerrar-sel").addEventListener("click", function () { setState({ sel: null }); });
+  }
+
+  // ——— mapa ———
+  function drawMap() {
+    var d3 = window.d3;
+    var cont = $("mapa-contenedor");
+    if (!d3 || !cont || !state.geo) return;
+    var W = cont.clientWidth || 700, H = cont.clientHeight || 560;
+    if (W < 50 || H < 50) return;
+    var geo = state.geo;
+    var filtered = filtrar();
+    var firma = JSON.stringify([W, H, state.region, state.cat, state.soloIA, state.soloNuevas, state.search]);
+    if (_firma === firma) return;
+    _firma = firma;
+
+    var proj = d3.geoConicConformalSpain ? d3.geoConicConformalSpain() : d3.geoMercator();
+    proj.scale(1000).translate([0, 0]);
+    var path = d3.geoPath(proj);
+    var b = path.bounds(geo);
+    var k = 0.92 / Math.max((b[1][0] - b[0][0]) / W, (b[1][1] - b[0][1]) / H);
+    proj.scale(1000 * k);
+    b = d3.geoPath(proj).bounds(geo);
+    proj.translate([(W - b[0][0] - b[1][0]) / 2, (H - b[0][1] - b[1][1]) / 2]);
+    path = d3.geoPath(proj);
+
+    var counts = {};
+    filtered.forEach(function (it) {
+      if (it.ci) { var r = regionDe(it); if (r) counts[r] = (counts[r] || 0) + 1; }
+    });
+    var max = Math.max.apply(null, [1].concat(Object.keys(counts).map(function (k2) { return counts[k2]; })));
+    var escala = d3.scaleLinear().domain([0, max]).range(["#EDE9DD", COLOR_ACENTO]);
+
+    d3.select(cont).selectAll("svg,.mapa-tip").remove();
+    var svg = d3.select(cont).append("svg").attr("width", W).attr("height", H).style("display", "block");
+    var tip = d3.select(cont).append("div").attr("class", "mapa-tip")
+      .style("position", "absolute").style("pointer-events", "none").style("z-index", "10")
+      .style("background", "#1B2431").style("color", "#F2EFE8").style("border-radius", "7px")
+      .style("padding", "8px 11px").style("font", "11.5px Archivo,sans-serif").style("max-width", "230px")
+      .style("box-shadow", "0 6px 18px rgba(0,0,0,.3)").style("display", "none").style("line-height", "1.45");
+
+    svg.append("rect").attr("width", W).attr("height", H).attr("fill", "transparent")
+      .on("dblclick", function () { setState({ region: "", search: "" }); });
+
+    svg.selectAll("path.ccaa").data(geo.features).join("path").attr("class", "ccaa")
+      .attr("d", path)
+      .attr("fill", function (f) { return escala(counts[canonRegion(nombreFeature(f))] || 0); })
+      .attr("stroke", "#FAF8F3").attr("stroke-width", 1.1)
+      .style("cursor", "pointer")
+      .on("mousemove", function (ev, f) {
+        var r = canonRegion(nombreFeature(f));
+        d3.select(this).attr("stroke", "#1B2431");
+        var p = d3.pointer(ev, cont);
+        tip.style("display", "block").style("left", Math.min(p[0] + 14, W - 240) + "px").style("top", (p[1] + 10) + "px")
+          .html("<b>" + esc(r) + "</b><br>" + (counts[r] || 0) + " herramientas en la selección");
+      })
+      .on("mouseleave", function () { d3.select(this).attr("stroke", "#FAF8F3"); tip.style("display", "none"); })
+      .on("click", function (ev, f) {
+        var r = canonRegion(nombreFeature(f));
+        setState({ region: state.region === r ? "" : r });
+      });
+
+    if (proj.getCompositionBorders) {
+      try { svg.append("path").attr("d", proj.getCompositionBorders()).attr("fill", "none").attr("stroke", "#C9C3B4").attr("stroke-width", 1); } catch (e) {}
+    }
+
+    // burbujas por ciudad
+    var porCiudad = {};
+    filtered.forEach(function (it) { if (it.ci) (porCiudad[it.ci] = porCiudad[it.ci] || []).push(it); });
+    var cities = datos().cities;
+    var nodos = Object.keys(porCiudad).map(function (ci) {
+      var p = proj(cities[ci].xy);
+      return p && { ci: ci, items: porCiudad[ci], x: p[0], y: p[1] };
+    }).filter(Boolean);
+
+    var g = svg.append("g");
+    var burb = g.selectAll("g.city").data(nodos).join("g").attr("class", "city")
+      .attr("transform", function (d) { return "translate(" + d.x + "," + d.y + ")"; }).style("cursor", "pointer");
+    var rad = function (d) { return 5.5 + Math.sqrt(d.items.length) * 3.6; };
+    burb.append("circle").attr("r", rad).attr("fill", "#1B2431").attr("fill-opacity", .92)
+      .attr("stroke", "#FAF8F3").attr("stroke-width", 1.6);
+    burb.filter(function (d) { return d.items.length > 1; }).append("text").text(function (d) { return d.items.length; })
+      .attr("text-anchor", "middle").attr("dy", "0.35em")
+      .attr("fill", "#F2EFE8").style("font", "700 10.5px 'IBM Plex Mono',monospace");
+    burb.filter(function (d) { return d.items.length >= 3; }).append("text").text(function (d) { return d.ci; })
+      .attr("text-anchor", "middle").attr("y", function (d) { return -rad(d) - 5; })
+      .attr("fill", "#1B2431").style("font", "700 10.5px Archivo,sans-serif")
+      .attr("stroke", "#F2EFE8").attr("stroke-width", 3).attr("paint-order", "stroke");
+    burb.on("mousemove", function (ev, d) {
+        var p = d3.pointer(ev, cont);
+        var lista = d.items.slice(0, 7).map(function (i) { return "· " + esc(i.n); }).join("<br>") +
+          (d.items.length > 7 ? "<br>… y " + (d.items.length - 7) + " más" : "");
+        tip.style("display", "block").style("left", Math.min(p[0] + 14, W - 240) + "px").style("top", (p[1] + 10) + "px")
+          .html("<b>" + esc(d.ci) + "</b> — " + d.items.length + "<br>" + lista);
+      })
+      .on("mouseleave", function () { tip.style("display", "none"); })
+      .on("click", function (ev, d) { ev.stopPropagation(); setState({ search: d.ci, region: "" }); });
+  }
+
+  // ——— geo ———
+  function esperarLibs(intento) {
+    if (!window.d3 || !window.LEGALTECH_DATA) {
+      if (intento < 60) return setTimeout(function () { esperarLibs(intento + 1); }, 250);
+      $("geo-error").style.display = "flex";
+      return;
+    }
+    cargarGeo();
+  }
+  function cargarGeo() {
+    var urls = [
+      "https://cdn.jsdelivr.net/gh/codeforgermany/click_that_hood@main/public/data/spain-communities.geojson",
+      "https://raw.githubusercontent.com/codeforgermany/click_that_hood/main/public/data/spain-communities.geojson"
+    ];
+    (function intenta(i) {
+      if (i >= urls.length) { $("geo-error").style.display = "flex"; return; }
+      fetch(urls[i]).then(function (r) {
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r.json();
+      }).then(function (geo) {
+        if (geo && geo.features) { state.geo = geo; _firma = null; drawMap(); }
+        else intenta(i + 1);
+      }).catch(function () { intenta(i + 1); });
+    })(0);
+  }
+
+  // ——— init ———
+  function init() {
+    var D = datos();
+
+    // select de regiones (filtro)
+    var selR = $("sel-region");
+    selR.innerHTML = '<option value="">Todas las comunidades</option>' +
+      D.regiones.map(function (r) { return '<option value="' + esc(r) + '">' + esc(r) + '</option>'; }).join("") +
+      '<option value="__int">Internacional (sin sede en España)</option>' +
+      '<option value="__sin">España · sede sin localizar</option>';
+    selR.addEventListener("change", function () { setState({ region: selR.value }); });
+
+    // chips de categorías
+    $("chips").innerHTML = D.cats.map(function (c) {
+      return '<button class="chip" id="chip-' + c.k + '" title="' + esc(c.label) + '">' +
+        '<span style="width:8px;height:8px;border-radius:50%;background:' + c.color + ';flex:none;"></span>' + esc(SHORTS[c.k] || c.k) + '</button>';
+    }).join("");
+    D.cats.forEach(function (c) {
+      $("chip-" + c.k).addEventListener("click", function () {
+        setState({ cat: state.cat === c.k ? "" : c.k });
+      });
+    });
+
+    $("buscador").addEventListener("input", function () { setState({ search: $("buscador").value }); });
+    $("chk-ia").addEventListener("change", function () { setState({ soloIA: $("chk-ia").checked }); });
+    $("chk-nuevas").addEventListener("change", function () { setState({ soloNuevas: $("chk-nuevas").checked }); });
+    $("btn-limpiar").addEventListener("click", function () {
+      setState({ search: "", region: "", cat: "", soloIA: false, soloNuevas: false });
+    });
+
+    window.addEventListener("resize", function () { _firma = null; drawMap(); });
+
+    renderKPIsBase();
+    render();
+    esperarLibs(0);
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
+  else init();
+})();
+</script>
+</body>
+</html>
